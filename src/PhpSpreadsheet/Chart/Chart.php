@@ -50,6 +50,13 @@ class Chart
     private $yAxisLabel;
 
     /**
+     * Secondary Y-Axis Label
+     *
+     * @var Title
+     */
+    private $secondaryYAxisLabel;
+
+    /**
      * Chart Plot Area.
      *
      * @var PlotArea
@@ -155,8 +162,9 @@ class Chart
      * @param null|Axis $yAxis
      * @param null|GridLines $majorGridlines
      * @param null|GridLines $minorGridlines
+     * @param null|Title $secondaryYAxisLabel
      */
-    public function __construct($name, Title $title = null, Legend $legend = null, PlotArea $plotArea = null, $plotVisibleOnly = true, $displayBlanksAs = '0', Title $xAxisLabel = null, Title $yAxisLabel = null, Axis $xAxis = null, Axis $yAxis = null, GridLines $majorGridlines = null, GridLines $minorGridlines = null)
+    public function __construct($name, Title $title = null, Legend $legend = null, PlotArea $plotArea = null, $plotVisibleOnly = true, $displayBlanksAs = '0', Title $xAxisLabel = null, Title $yAxisLabel = null, Axis $xAxis = null, Axis $yAxis = null, GridLines $majorGridlines = null, GridLines $minorGridlines = null, Title $secondaryYAxisLabel = null)
     {
         $this->name = $name;
         $this->title = $title;
@@ -170,6 +178,7 @@ class Chart
         $this->yAxis = $yAxis;
         $this->majorGridlines = $majorGridlines;
         $this->minorGridlines = $minorGridlines;
+        $this->secondaryYAxisLabel = $secondaryYAxisLabel;
     }
 
     /**
@@ -289,6 +298,16 @@ class Chart
     }
 
     /**
+     * Get Secondary Y-Axis Label.
+     *
+     * @return Title
+     */
+    public function getSecondaryYAxisLabel()
+    {
+        return $this->secondaryYAxisLabel;
+    }
+
+    /**
      * Set Y-Axis Label.
      *
      * @param Title $label
@@ -298,6 +317,20 @@ class Chart
     public function setYAxisLabel(Title $label)
     {
         $this->yAxisLabel = $label;
+
+        return $this;
+    }
+
+    /**
+     * Set Secondary Y-Axis Label.
+     *
+     * @param Title $label
+     *
+     * @return Chart
+     */
+    public function setSecondaryYAxisLabel(Title $label)
+    {
+        $this->secondaryYAxisLabel = $label;
 
         return $this;
     }
