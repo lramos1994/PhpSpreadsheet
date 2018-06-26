@@ -27,7 +27,7 @@ class DataSeries
     const GROUPING_CLUSTERED = 'clustered';
     const GROUPING_STACKED = 'stacked';
     const GROUPING_PERCENT_STACKED = 'percentStacked';
-    const GROUPING_STANDARD = 'standard';
+    const q = 'standard';
 
     const DIRECTION_BAR = 'bar';
     const DIRECTION_HORIZONTAL = self::DIRECTION_BAR;

@@ -14,6 +14,8 @@ use PhpOffice\PhpSpreadsheet\Shared\StringHelper;
 use PhpOffice\PhpSpreadsheet\Shared\XMLWriter;
 use PhpOffice\PhpSpreadsheet\Writer\Exception as WriterException;
 
+//Roland Finke: Multiple Changes made to integrate secondary Yaxis
+
 class Chart extends WriterPart
 {
     protected $calculateCellValues;
@@ -78,7 +80,7 @@ class Chart extends WriterPart
         $objWriter->writeAttribute('val', 0);
         $objWriter->endElement();
 
-        $this->writePlotArea($objWriter, $pChart->getWorksheet(), $pChart->getPlotArea(), $pChart->getXAxisLabel(), $pChart->getYAxisLabel(), $pChart->getChartAxisX(), $pChart->getChartAxisY(), $pChart->getMajorGridlines(), $pChart->getMinorGridlines());
+        $this->writePlotArea($objWriter, $pChart->getWorksheet(), $pChart->getPlotArea(), $pChart->getXAxisLabel(), $pChart->getYAxisLabel(), $pChart->getChartAxisX(), $pChart->getChartAxisY(), $pChart->getMajorGridlines(), $pChart->getMinorGridlines(), $pChart->getSecondaryYAxisLabel());
 
         $this->writeLegend($objWriter, $pChart->getLegend());
 
@@ -215,7 +217,7 @@ class Chart extends WriterPart
      *
      * @throws WriterException
      */
-    private function writePlotArea(XMLWriter $objWriter, \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $pSheet, PlotArea $plotArea, Title $xAxisLabel = null, Title $yAxisLabel = null, Axis $xAxis = null, Axis $yAxis = null, GridLines $majorGridlines = null, GridLines $minorGridlines = null)
+    private function writePlotArea(XMLWriter $objWriter, \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $pSheet, PlotArea $plotArea, Title $xAxisLabel = null, Title $yAxisLabel = null, Axis $xAxis = null, Axis $yAxis = null, GridLines $majorGridlines = null, GridLines $minorGridlines = null, Title $secondaryYAxisLabel = null)
     {
         if ($plotArea === null) {
             return;
@@ -325,6 +327,107 @@ class Chart extends WriterPart
             $objWriter->endElement();
         }
 
+        if($secondaryYAxisLabel != null)
+        {
+            foreach ($chartTypes as $chartType) {
+                //$objWriter->startElement('c:' . $chartType);
+                $objWriter->startElement('c:lineChart');
+                $groupCount = $plotArea->getPlotSecondaryGroupCount();
+                for ($i = 0; $i < $groupCount; ++$i) {
+                    $plotGroup = $plotArea->getPlotSecondaryGroupByIndex($i);
+                    $groupType = $plotGroup->getPlotType();
+                    //if ($groupType == $chartType) {
+                    if ($groupType == 'lineChart') {
+                        $plotStyle = $plotGroup->getPlotStyle();
+                        if ($groupType === DataSeries::TYPE_RADARCHART) {
+                            $objWriter->startElement('c:radarStyle');
+                            $objWriter->writeAttribute('val', $plotStyle);
+                            $objWriter->endElement();
+                        } elseif ($groupType === DataSeries::TYPE_SCATTERCHART) {
+                            $objWriter->startElement('c:scatterStyle');
+                            $objWriter->writeAttribute('val', $plotStyle);
+                            $objWriter->endElement();
+                        }
+
+                        $this->writePlotGroup($plotGroup, 'lineChart', $objWriter, $catIsMultiLevelSeries, $valIsMultiLevelSeries, $plotGroupingType);
+                    }
+                }
+
+                $this->writeDataLabels($objWriter, $layout);
+
+                if ($chartType === DataSeries::TYPE_LINECHART) {
+                    //    Line only, Line3D can't be smoothed
+                    $objWriter->startElement('c:smooth');
+                    $objWriter->writeAttribute('val', (int) $plotGroup->getSmoothLine());
+                    $objWriter->endElement();
+                } elseif (($chartType === DataSeries::TYPE_BARCHART) || ($chartType === DataSeries::TYPE_BARCHART_3D)) {
+                    $objWriter->startElement('c:gapWidth');
+                    $objWriter->writeAttribute('val', 150);
+                    $objWriter->endElement();
+
+                    if ($plotGroupingType == 'percentStacked' || $plotGroupingType == 'stacked') {
+                        $objWriter->startElement('c:overlap');
+                        $objWriter->writeAttribute('val', 100);
+                        $objWriter->endElement();
+                    }
+                } elseif ($chartType === DataSeries::TYPE_BUBBLECHART) {
+                    $objWriter->startElement('c:bubbleScale');
+                    $objWriter->writeAttribute('val', 25);
+                    $objWriter->endElement();
+
+                    $objWriter->startElement('c:showNegBubbles');
+                    $objWriter->writeAttribute('val', 0);
+                    $objWriter->endElement();
+                } elseif ($chartType === DataSeries::TYPE_STOCKCHART) {
+                    $objWriter->startElement('c:hiLowLines');
+                    $objWriter->endElement();
+
+                    $objWriter->startElement('c:upDownBars');
+
+                    $objWriter->startElement('c:gapWidth');
+                    $objWriter->writeAttribute('val', 300);
+                    $objWriter->endElement();
+
+                    $objWriter->startElement('c:upBars');
+                    $objWriter->endElement();
+
+                    $objWriter->startElement('c:downBars');
+                    $objWriter->endElement();
+
+                    $objWriter->endElement();
+                }
+
+                //    Generate 2 unique numbers to use for axId values
+                +                //                    $id1 = $id2 = rand(10000000,99999999);
+                +                //                    do {
+                +                //                        $id2 = rand(10000000,99999999);
+                +                //                    } while ($id1 == $id2);
+                +                $secondary_id1 = '76091328';
+                +                $secondary_id2 = '76089408';
+
+                if (($chartType !== DataSeries::TYPE_PIECHART) && ($chartType !== DataSeries::TYPE_PIECHART_3D) && ($chartType !== DataSeries::TYPE_DONUTCHART)) {
+                    $objWriter->startElement('c:axId');
+                    $objWriter->writeAttribute('val', $secondary_id1);
+                    $objWriter->endElement();
+                    $objWriter->startElement('c:axId');
+                    $objWriter->writeAttribute('val', $secondary_id2);
+                    $objWriter->endElement();
+                } else {
+                    $objWriter->startElement('c:firstSliceAng');
+                    $objWriter->writeAttribute('val', 0);
+                    $objWriter->endElement();
+
+                    if ($chartType === DataSeries::TYPE_DONUTCHART) {
+                        $objWriter->startElement('c:holeSize');
+                        $objWriter->writeAttribute('val', 50);
+                        $objWriter->endElement();
+                    }
+                }
+
+                $objWriter->endElement();
+            }
+        }
+
         if (($chartType !== DataSeries::TYPE_PIECHART) && ($chartType !== DataSeries::TYPE_PIECHART_3D) && ($chartType !== DataSeries::TYPE_DONUTCHART)) {
             if ($chartType === DataSeries::TYPE_BUBBLECHART) {
                 $this->writeValueAxis($objWriter, $xAxisLabel, $chartType, $id1, $id2, $catIsMultiLevelSeries, $xAxis, $majorGridlines, $minorGridlines);
@@ -333,6 +436,19 @@ class Chart extends WriterPart
             }
 
             $this->writeValueAxis($objWriter, $yAxisLabel, $chartType, $id1, $id2, $valIsMultiLevelSeries, $xAxis, $majorGridlines, $minorGridlines);
+        }
+        //secondary axis
+        if($secondaryYAxisLabel != null)
+        {
+            if (($chartType !== DataSeries::TYPE_PIECHART) && ($chartType !== DataSeries::TYPE_PIECHART_3D) && ($chartType !== DataSeries::TYPE_DONUTCHART)) {
+                if ($chartType === DataSeries::TYPE_BUBBLECHART) {
+                    $this->writeValueAxis($objWriter, $xAxisLabel, $chartType, $secondary_id1, $secondary_id2, $catIsMultiLevelSeries, $xAxis, $majorGridlines, $minorGridlines);
+                } else {
+                    $this->writeCategoryAxis($objWriter, $xAxisLabel, $secondary_id1, $secondary_id2, $catIsMultiLevelSeries, $yAxis, true);
+                }
+
+                $this->writeValueAxis($objWriter, $secondaryYAxisLabel, $chartType, $secondary_id1, $secondary_id2, $valIsMultiLevelSeries, $xAxis, $majorGridlines, $minorGridlines, true);
+            }
         }
 
         $objWriter->endElement();
@@ -398,7 +514,7 @@ class Chart extends WriterPart
      *
      * @throws WriterException
      */
-    private function writeCategoryAxis($objWriter, $xAxisLabel, $id1, $id2, $isMultiLevelSeries, Axis $yAxis)
+    private function writeCategoryAxis($objWriter, $xAxisLabel, $id1, $id2, $isMultiLevelSeries, Axis $yAxis, $secondary = false)
     {
         $objWriter->startElement('c:catAx');
 
@@ -415,7 +531,15 @@ class Chart extends WriterPart
         $objWriter->endElement();
 
         $objWriter->startElement('c:delete');
-        $objWriter->writeAttribute('val', 0);
+//        $objWriter->writeAttribute('val', 0);
+        if($secondary == false)
+        {
+            $objWriter->writeAttribute('val', 0);
+        }
+        else
+        {
+            $objWriter->writeAttribute('val', 1);
+        }
         $objWriter->endElement();
 
         $objWriter->startElement('c:axPos');
@@ -521,7 +645,7 @@ class Chart extends WriterPart
      *
      * @throws WriterException
      */
-    private function writeValueAxis($objWriter, $yAxisLabel, $groupType, $id1, $id2, $isMultiLevelSeries, Axis $xAxis, GridLines $majorGridlines, GridLines $minorGridlines)
+    private function writeValueAxis($objWriter, $yAxisLabel, $groupType, $id1, $id2, $isMultiLevelSeries, Axis $xAxis, GridLines $majorGridlines, GridLines $minorGridlines, $secondary = false)
     {
         $objWriter->startElement('c:valAx');
 
@@ -556,114 +680,125 @@ class Chart extends WriterPart
         $objWriter->endElement();
 
         $objWriter->startElement('c:axPos');
-        $objWriter->writeAttribute('val', 'l');
+        //$objWriter->writeAttribute('val', 'l');
+        if($secondary == false)
+        {
+            $objWriter->writeAttribute('val', "l");
+        }
+        else
+        {
+            $objWriter->writeAttribute('val', "r");
+        }
         $objWriter->endElement();
 
-        $objWriter->startElement('c:majorGridlines');
-        $objWriter->startElement('c:spPr');
+        if ($secondary == false)
+        {
+            $objWriter->startElement('c:majorGridlines');
+            $objWriter->startElement('c:spPr');
 
-        if ($majorGridlines->getLineColorProperty('value') !== null) {
-            $objWriter->startElement('a:ln');
-            $objWriter->writeAttribute('w', $majorGridlines->getLineStyleProperty('width'));
-            $objWriter->startElement('a:solidFill');
-            $objWriter->startElement("a:{$majorGridlines->getLineColorProperty('type')}");
-            $objWriter->writeAttribute('val', $majorGridlines->getLineColorProperty('value'));
-            $objWriter->startElement('a:alpha');
-            $objWriter->writeAttribute('val', $majorGridlines->getLineColorProperty('alpha'));
-            $objWriter->endElement(); //end alpha
-            $objWriter->endElement(); //end srgbClr
-            $objWriter->endElement(); //end solidFill
+            if ($majorGridlines->getLineColorProperty('value') !== null) {
+                $objWriter->startElement('a:ln');
+                $objWriter->writeAttribute('w', $majorGridlines->getLineStyleProperty('width'));
+                $objWriter->startElement('a:solidFill');
+                $objWriter->startElement("a:{$majorGridlines->getLineColorProperty('type')}");
+                $objWriter->writeAttribute('val', $majorGridlines->getLineColorProperty('value'));
+                $objWriter->startElement('a:alpha');
+                $objWriter->writeAttribute('val', $majorGridlines->getLineColorProperty('alpha'));
+                $objWriter->endElement(); //end alpha
+                $objWriter->endElement(); //end srgbClr
+                $objWriter->endElement(); //end solidFill
 
-            $objWriter->startElement('a:prstDash');
-            $objWriter->writeAttribute('val', $majorGridlines->getLineStyleProperty('dash'));
-            $objWriter->endElement();
-
-            if ($majorGridlines->getLineStyleProperty('join') == 'miter') {
-                $objWriter->startElement('a:miter');
-                $objWriter->writeAttribute('lim', '800000');
+                $objWriter->startElement('a:prstDash');
+                $objWriter->writeAttribute('val', $majorGridlines->getLineStyleProperty('dash'));
                 $objWriter->endElement();
-            } else {
-                $objWriter->startElement('a:bevel');
-                $objWriter->endElement();
+
+                if ($majorGridlines->getLineStyleProperty('join') == 'miter') {
+                    $objWriter->startElement('a:miter');
+                    $objWriter->writeAttribute('lim', '800000');
+                    $objWriter->endElement();
+                } else {
+                    $objWriter->startElement('a:bevel');
+                    $objWriter->endElement();
+                }
+
+                if ($majorGridlines->getLineStyleProperty(['arrow', 'head', 'type']) !== null) {
+                    $objWriter->startElement('a:headEnd');
+                    $objWriter->writeAttribute('type', $majorGridlines->getLineStyleProperty(['arrow', 'head', 'type']));
+                    $objWriter->writeAttribute('w', $majorGridlines->getLineStyleArrowParameters('head', 'w'));
+                    $objWriter->writeAttribute('len', $majorGridlines->getLineStyleArrowParameters('head', 'len'));
+                    $objWriter->endElement();
+                }
+
+                if ($majorGridlines->getLineStyleProperty(['arrow', 'end', 'type']) !== null) {
+                    $objWriter->startElement('a:tailEnd');
+                    $objWriter->writeAttribute('type', $majorGridlines->getLineStyleProperty(['arrow', 'end', 'type']));
+                    $objWriter->writeAttribute('w', $majorGridlines->getLineStyleArrowParameters('end', 'w'));
+                    $objWriter->writeAttribute('len', $majorGridlines->getLineStyleArrowParameters('end', 'len'));
+                    $objWriter->endElement();
+                }
+                $objWriter->endElement(); //end ln
+            }
+            $objWriter->startElement('a:effectLst');
+
+            if ($majorGridlines->getGlowSize() !== null) {
+                $objWriter->startElement('a:glow');
+                $objWriter->writeAttribute('rad', $majorGridlines->getGlowSize());
+                $objWriter->startElement("a:{$majorGridlines->getGlowColor('type')}");
+                $objWriter->writeAttribute('val', $majorGridlines->getGlowColor('value'));
+                $objWriter->startElement('a:alpha');
+                $objWriter->writeAttribute('val', $majorGridlines->getGlowColor('alpha'));
+                $objWriter->endElement(); //end alpha
+                $objWriter->endElement(); //end schemeClr
+                $objWriter->endElement(); //end glow
             }
 
-            if ($majorGridlines->getLineStyleProperty(['arrow', 'head', 'type']) !== null) {
-                $objWriter->startElement('a:headEnd');
-                $objWriter->writeAttribute('type', $majorGridlines->getLineStyleProperty(['arrow', 'head', 'type']));
-                $objWriter->writeAttribute('w', $majorGridlines->getLineStyleArrowParameters('head', 'w'));
-                $objWriter->writeAttribute('len', $majorGridlines->getLineStyleArrowParameters('head', 'len'));
-                $objWriter->endElement();
+            if ($majorGridlines->getShadowProperty('presets') !== null) {
+                $objWriter->startElement("a:{$majorGridlines->getShadowProperty('effect')}");
+                if ($majorGridlines->getShadowProperty('blur') !== null) {
+                    $objWriter->writeAttribute('blurRad', $majorGridlines->getShadowProperty('blur'));
+                }
+                if ($majorGridlines->getShadowProperty('distance') !== null) {
+                    $objWriter->writeAttribute('dist', $majorGridlines->getShadowProperty('distance'));
+                }
+                if ($majorGridlines->getShadowProperty('direction') !== null) {
+                    $objWriter->writeAttribute('dir', $majorGridlines->getShadowProperty('direction'));
+                }
+                if ($majorGridlines->getShadowProperty('algn') !== null) {
+                    $objWriter->writeAttribute('algn', $majorGridlines->getShadowProperty('algn'));
+                }
+                if ($majorGridlines->getShadowProperty(['size', 'sx']) !== null) {
+                    $objWriter->writeAttribute('sx', $majorGridlines->getShadowProperty(['size', 'sx']));
+                }
+                if ($majorGridlines->getShadowProperty(['size', 'sy']) !== null) {
+                    $objWriter->writeAttribute('sy', $majorGridlines->getShadowProperty(['size', 'sy']));
+                }
+                if ($majorGridlines->getShadowProperty(['size', 'kx']) !== null) {
+                    $objWriter->writeAttribute('kx', $majorGridlines->getShadowProperty(['size', 'kx']));
+                }
+                if ($majorGridlines->getShadowProperty('rotWithShape') !== null) {
+                    $objWriter->writeAttribute('rotWithShape', $majorGridlines->getShadowProperty('rotWithShape'));
+                }
+                $objWriter->startElement("a:{$majorGridlines->getShadowProperty(['color', 'type'])}");
+                $objWriter->writeAttribute('val', $majorGridlines->getShadowProperty(['color', 'value']));
+
+                $objWriter->startElement('a:alpha');
+                $objWriter->writeAttribute('val', $majorGridlines->getShadowProperty(['color', 'alpha']));
+                $objWriter->endElement(); //end alpha
+
+                $objWriter->endElement(); //end color:type
+                $objWriter->endElement(); //end shadow
             }
 
-            if ($majorGridlines->getLineStyleProperty(['arrow', 'end', 'type']) !== null) {
-                $objWriter->startElement('a:tailEnd');
-                $objWriter->writeAttribute('type', $majorGridlines->getLineStyleProperty(['arrow', 'end', 'type']));
-                $objWriter->writeAttribute('w', $majorGridlines->getLineStyleArrowParameters('end', 'w'));
-                $objWriter->writeAttribute('len', $majorGridlines->getLineStyleArrowParameters('end', 'len'));
-                $objWriter->endElement();
+            if ($majorGridlines->getSoftEdgesSize() !== null) {
+                $objWriter->startElement('a:softEdge');
+                $objWriter->writeAttribute('rad', $majorGridlines->getSoftEdgesSize());
+                $objWriter->endElement(); //end softEdge
             }
-            $objWriter->endElement(); //end ln
+
+            $objWriter->endElement(); //end effectLst
+            $objWriter->endElement(); //end spPr
+            $objWriter->endElement(); //end majorGridLines
         }
-        $objWriter->startElement('a:effectLst');
-
-        if ($majorGridlines->getGlowSize() !== null) {
-            $objWriter->startElement('a:glow');
-            $objWriter->writeAttribute('rad', $majorGridlines->getGlowSize());
-            $objWriter->startElement("a:{$majorGridlines->getGlowColor('type')}");
-            $objWriter->writeAttribute('val', $majorGridlines->getGlowColor('value'));
-            $objWriter->startElement('a:alpha');
-            $objWriter->writeAttribute('val', $majorGridlines->getGlowColor('alpha'));
-            $objWriter->endElement(); //end alpha
-            $objWriter->endElement(); //end schemeClr
-            $objWriter->endElement(); //end glow
-        }
-
-        if ($majorGridlines->getShadowProperty('presets') !== null) {
-            $objWriter->startElement("a:{$majorGridlines->getShadowProperty('effect')}");
-            if ($majorGridlines->getShadowProperty('blur') !== null) {
-                $objWriter->writeAttribute('blurRad', $majorGridlines->getShadowProperty('blur'));
-            }
-            if ($majorGridlines->getShadowProperty('distance') !== null) {
-                $objWriter->writeAttribute('dist', $majorGridlines->getShadowProperty('distance'));
-            }
-            if ($majorGridlines->getShadowProperty('direction') !== null) {
-                $objWriter->writeAttribute('dir', $majorGridlines->getShadowProperty('direction'));
-            }
-            if ($majorGridlines->getShadowProperty('algn') !== null) {
-                $objWriter->writeAttribute('algn', $majorGridlines->getShadowProperty('algn'));
-            }
-            if ($majorGridlines->getShadowProperty(['size', 'sx']) !== null) {
-                $objWriter->writeAttribute('sx', $majorGridlines->getShadowProperty(['size', 'sx']));
-            }
-            if ($majorGridlines->getShadowProperty(['size', 'sy']) !== null) {
-                $objWriter->writeAttribute('sy', $majorGridlines->getShadowProperty(['size', 'sy']));
-            }
-            if ($majorGridlines->getShadowProperty(['size', 'kx']) !== null) {
-                $objWriter->writeAttribute('kx', $majorGridlines->getShadowProperty(['size', 'kx']));
-            }
-            if ($majorGridlines->getShadowProperty('rotWithShape') !== null) {
-                $objWriter->writeAttribute('rotWithShape', $majorGridlines->getShadowProperty('rotWithShape'));
-            }
-            $objWriter->startElement("a:{$majorGridlines->getShadowProperty(['color', 'type'])}");
-            $objWriter->writeAttribute('val', $majorGridlines->getShadowProperty(['color', 'value']));
-
-            $objWriter->startElement('a:alpha');
-            $objWriter->writeAttribute('val', $majorGridlines->getShadowProperty(['color', 'alpha']));
-            $objWriter->endElement(); //end alpha
-
-            $objWriter->endElement(); //end color:type
-            $objWriter->endElement(); //end shadow
-        }
-
-        if ($majorGridlines->getSoftEdgesSize() !== null) {
-            $objWriter->startElement('a:softEdge');
-            $objWriter->writeAttribute('rad', $majorGridlines->getSoftEdgesSize());
-            $objWriter->endElement(); //end softEdge
-        }
-
-        $objWriter->endElement(); //end effectLst
-        $objWriter->endElement(); //end spPr
-        $objWriter->endElement(); //end majorGridLines
 
         if ($minorGridlines->getObjectState()) {
             $objWriter->startElement('c:minorGridlines');
@@ -953,7 +1088,15 @@ class Chart extends WriterPart
 
         if ($id1 > 0) {
             $objWriter->startElement('c:crossAx');
-            $objWriter->writeAttribute('val', $id2);
+//            $objWriter->writeAttribute('val', $id2);
+            if($secondary == false)
+            {
+                $objWriter->writeAttribute('val', $id2);
+            }
+            else
+            {
+                $objWriter->writeAttribute('val', $id1);
+            }
             $objWriter->endElement();
 
             if ($xAxis->getAxisOptionsProperty('horizontal_crosses_value') !== null) {
@@ -961,14 +1104,31 @@ class Chart extends WriterPart
                 $objWriter->writeAttribute('val', $xAxis->getAxisOptionsProperty('horizontal_crosses_value'));
                 $objWriter->endElement();
             } else {
-                $objWriter->startElement('c:crosses');
-                $objWriter->writeAttribute('val', $xAxis->getAxisOptionsProperty('horizontal_crosses'));
+                if ($secondary == false)
+                {
+                    $objWriter->startElement('c:crosses');
+                    $objWriter->writeAttribute('val', $xAxis->getAxisOptionsProperty('horizontal_crosses'));
+                    $objWriter->endElement();
+                }
+                else
+                {
+                    $objWriter->startElement('c:crosses');
+                    $objWriter->writeAttribute('val', "max");
+                    $objWriter->endElement();
+                }
+            }
+            if ($secondary == false)
+            {
+                $objWriter->startElement('c:crossBetween');
+                $objWriter->writeAttribute('val', 'midCat');
                 $objWriter->endElement();
             }
-
-            $objWriter->startElement('c:crossBetween');
-            $objWriter->writeAttribute('val', 'midCat');
-            $objWriter->endElement();
+            else
+            {
+                $objWriter->startElement('c:crossBetween');
+                $objWriter->writeAttribute('val', "between");
+                $objWriter->endElement();
+            }
 
             if ($xAxis->getAxisOptionsProperty('major_unit') !== null) {
                 $objWriter->startElement('c:majorUnit');

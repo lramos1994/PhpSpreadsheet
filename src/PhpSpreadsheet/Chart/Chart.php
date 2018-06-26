@@ -5,6 +5,8 @@ namespace PhpOffice\PhpSpreadsheet\Chart;
 use PhpOffice\PhpSpreadsheet\Settings;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
+//Roland Finke: Multiple Changes made to integrate secondary Yaxis
+
 class Chart
 {
     /**
