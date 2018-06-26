@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Support workbook view attributes for Xlsx format - [#523](https://github.com/PHPOffice/PhpSpreadsheet/issues/523)
+
+### Fixed
+
+- Xlsx reader crashed when reading a file with workbook protection - [#553](https://github.com/PHPOffice/PhpSpreadsheet/pull/553)
+- Cell formats with escaped spaces were causing incorrect date formatting - [#557](https://github.com/PHPOffice/PhpSpreadsheet/issues/557)
+- Could not open CSV file containing HTML fragment - [##564](https://github.com/PHPOffice/PhpSpreadsheet/issues/564)
+
 ## [1.3.1] - 2018-06-12
 
 ### Fixed
